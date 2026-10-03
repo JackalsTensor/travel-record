@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Diag from "@/app/diag";
 import { cities } from "@/data/cities";
 import { probeStorage, readMirror, readRecords, readStates, saveRecords, saveStates, writeMirror } from "@/lib/storage";
 import type { City, CityState, Photo, TravelRecord } from "@/lib/types";
@@ -46,6 +47,7 @@ export default function Home() {
   const [confirming, setConfirming] = useState<TravelRecord | null>(null);
   const [saveError, setSaveError] = useState("");
   const [storageLost, setStorageLost] = useState(false);
+  const [diagOn, setDiagOn] = useState(false);
   const [query, setQuery] = useState("");
   const [lightbox, setLightbox] = useState<Photo[] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -53,7 +55,7 @@ export default function Home() {
   const canvas = useRef<SVGSVGElement>(null);
   const drag = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
 
-  useEffect(() => { fetch("/china-provinces.geojson").then(r => r.json()).then(d => setFeatures(d.features || [])); const recs = readRecords(); const sts = readStates(); setRecords(recs); setStates(sts); const persistent = probeStorage(); const visits = bumpVisits(); const mirror = readMirror(); const lost = (!persistent && visits > 1 && recs.length === 0) || (mirror > 0 && recs.length === 0); setStorageLost(lost); console.log("[xingji:diagnose]", { visits, storagePersistent: persistent, mirrorCount: mirror, recordsLoaded: recs.length, statesLoaded: sts.length, dataLost: lost, url: location.href, ua: navigator.userAgent }); }, []);
+  useEffect(() => { fetch("/china-provinces.geojson").then(r => r.json()).then(d => setFeatures(d.features || [])); const recs = readRecords(); const sts = readStates(); setRecords(recs); setStates(sts); const persistent = probeStorage(); const visits = bumpVisits(); const mirror = readMirror(); const lost = (!persistent && visits > 1 && recs.length === 0) || (mirror > 0 && recs.length === 0); setStorageLost(lost); if (location.search.includes("diag=1")) setDiagOn(true); console.log("[xingji:diagnose]", { visits, storagePersistent: persistent, mirrorCount: mirror, recordsLoaded: recs.length, statesLoaded: sts.length, dataLost: lost, url: location.href, ua: navigator.userAgent }); }, []);
   const cityRecords = useMemo(() => selected ? records.filter(r => r.cityId === selected.id).sort((a,b) => a.startDate.localeCompare(b.startDate)) : [], [selected, records]);
   const visitedIds = useMemo(() => new Set(records.map(r => r.cityId)), [records]);
   const plannedIds = useMemo(() => new Set(states.filter(s => s.planned).map(s => s.cityId)), [states]);
@@ -75,6 +77,7 @@ export default function Home() {
     {view === "album" && <Album records={records} onPhotos={p=>{setLightbox(p);setPhotoIndex(0)}} />}
     {editor && selected && <Editor city={selected} initial={editing} error={saveError} onClose={()=>{setEditor(false);setEditing(null);setSaveError("")}} onSave={saveRecord} />}
     {confirming && <ConfirmDelete record={confirming} onCancel={()=>setConfirming(null)} onConfirm={()=>deleteRecord(confirming.id)} />}
+    {diagOn && <Diag records={records.length} lost={storageLost} onClose={()=>setDiagOn(false)} />}
     {lightbox && lightbox.length>0 && <Lightbox photos={lightbox} index={photoIndex} setIndex={setPhotoIndex} onClose={()=>setLightbox(null)} />}
   </main>;
 }
